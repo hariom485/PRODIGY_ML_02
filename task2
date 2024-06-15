@@ -1,0 +1,111 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <random>
+
+// Function to calculate Euclidean distance between two points
+double euclideanDistance(const std::vector<double>& point1, const std::vector<double>& point2) {
+    double sum = 0.0;
+    for (size_t i = 0; i < point1.size(); ++i) {
+        sum += pow(point1[i] - point2[i], 2);
+    }
+    return sqrt(sum);
+}
+
+// Function to initialize centroids randomly
+std::vector<std::vector<double>> initializeCentroids(const std::vector<std::vector<double>>& data, int k) {
+    std::vector<std::vector<double>> centroids;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, data.size() - 1);
+    for (int i = 0; i < k; ++i) {
+        int idx = dis(gen);
+        centroids.push_back(data[idx]);
+    }
+    return centroids;
+}
+
+// Function to assign each data point to the nearest centroid
+std::vector<int> assignClusters(const std::vector<std::vector<double>>& data, const std::vector<std::vector<double>>& centroids) {
+    std::vector<int> clusters;
+    for (size_t i = 0; i < data.size(); ++i) {
+        double minDist = std::numeric_limits<double>::max();
+        int clusterIdx = -1;
+        for (size_t j = 0; j < centroids.size(); ++j) {
+            double dist = euclideanDistance(data[i], centroids[j]);
+            if (dist < minDist) {
+                minDist = dist;
+                clusterIdx = j;
+            }
+        }
+        clusters.push_back(clusterIdx);
+    }
+    return clusters;
+}
+
+// Function to update centroids based on the mean of the data points assigned to each cluster
+std::vector<std::vector<double>> updateCentroids(const std::vector<std::vector<double>>& data, const std::vector<int>& clusters, int k) {
+    std::vector<std::vector<double>> centroids(k, std::vector<double>(data[0].size(), 0.0));
+    std::vector<int> clusterCounts(k, 0);
+    for (size_t i = 0; i < data.size(); ++i) {
+        int clusterIdx = clusters[i];
+        for (size_t j = 0; j < data[i].size(); ++j) {
+            centroids[clusterIdx][j] += data[i][j];
+        }
+        clusterCounts[clusterIdx]++;
+    }
+    for (int i = 0; i < k; ++i) {
+        if (clusterCounts[i] > 0) {
+            for (size_t j = 0; j < centroids[i].size(); ++j) {
+                centroids[i][j] /= clusterCounts[i];
+            }
+        }
+    }
+    return centroids;
+}
+
+// Function to check if centroids have converged
+bool hasConverged(const std::vector<std::vector<double>>& oldCentroids, const std::vector<std::vector<double>>& newCentroids, double tolerance) {
+    for (size_t i = 0; i < oldCentroids.size(); ++i) {
+        if (euclideanDistance(oldCentroids[i], newCentroids[i]) > tolerance) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Function to perform K-means clustering
+std::vector<int> kMeans(const std::vector<std::vector<double>>& data, int k, double tolerance, int maxIterations) {
+    std::vector<std::vector<double>> centroids = initializeCentroids(data, k);
+    std::vector<std::vector<double>> oldCentroids;
+    int iter = 0;
+    while (iter < maxIterations) {
+        oldCentroids = centroids;
+        std::vector<int> clusters = assignClusters(data, centroids);
+        centroids = updateCentroids(data, clusters, k);
+        if (hasConverged(oldCentroids, centroids, tolerance)) {
+            break;
+        }
+        iter++;
+    }
+    return assignClusters(data, centroids);
+}
+
+int main() {
+    // Sample dataset (customer purchase history)
+    std::vector<std::vector<double>> data = {{10, 20, 30}, {15, 25, 35}, {20, 30, 40}, {35, 45, 55}, {40, 50, 60}};
+    int k = 2; // Number of clusters
+    double tolerance = 0.0001; // Tolerance for convergence
+    int maxIterations = 1000; // Maximum number of iterations
+    
+    // Perform K-means clustering
+    std::vector<int> clusters = kMeans(data, k, tolerance, maxIterations);
+    
+    // Print cluster assignments
+    std::cout << "Cluster Assignments:" << std::endl;
+    for (size_t i = 0; i < clusters.size(); ++i) {
+        std::cout << "Data point " << i << " belongs to cluster " << clusters[i] << std::endl;
+    }
+    
+    return 0;
+}
